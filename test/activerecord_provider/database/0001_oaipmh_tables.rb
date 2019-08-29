@@ -38,7 +38,7 @@ class OaipmhTables < ActiveRecord::Migration
 
     create_table :dc_fields, &dc_fields
 
-    create_table :dc_publications, :id => false do |t|
+    create_table :dc_publications do |t|
       t.column  :dc_field_id,    :integer
       t.column  :name,         :string
       t.column  :available_from, :date
