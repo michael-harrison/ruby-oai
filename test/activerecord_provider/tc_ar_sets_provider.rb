@@ -51,22 +51,22 @@ class ActiveRecordSetProviderTest < TransactionalTestCase
     set_ab = DCSet.create(:name => "Set A:B", :spec => "A:B")
 
     next_id = 0
-    DCField.find(:all, :limit => 10, :order => "id asc").each do |record|
+    DCField.unscoped.find(:all, :limit => 10, :order => "id asc").each do |record|
       set_a.dc_fields << record
       next_id = record.id
     end
 
-    DCField.find(:all, :limit => 10, :order => "id asc", :conditions => "id > #{next_id}").each do |record|
+    DCField.unscoped.find(:all, :limit => 10, :order => "id asc", :conditions => "id > #{next_id}").each do |record|
       set_b.dc_fields << record
       next_id = record.id
     end
 
-    DCField.find(:all, :limit => 10, :order => "id asc", :conditions => "id > #{next_id}").each do |record|
+    DCField.unscoped.find(:all, :limit => 10, :order => "id asc", :conditions => "id > #{next_id}").each do |record|
       set_ab.dc_fields << record
       next_id = record.id
     end
 
-    DCField.find(:all, :limit => 10, :order => "id asc", :conditions => "id > #{next_id}").each do |record|
+    DCField.unscoped.find(:all, :limit => 10, :order => "id asc", :conditions => "id > #{next_id}").each do |record|
       set_a.dc_fields << record
       set_c.dc_fields << record
       next_id = record.id

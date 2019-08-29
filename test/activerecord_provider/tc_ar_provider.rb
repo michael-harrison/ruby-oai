@@ -47,8 +47,7 @@ class ActiveRecordProviderTest < TransactionalTestCase
 
   def test_deleted
     record = DCField.find(:first)
-    record.deleted = true;
-    record.save
+    DCField.unscoped.where(id: record.id).update_all(deleted: true)
     doc = REXML::Document.new(@provider.get_record(
       :identifier => "oai:test/#{record.id}", :metadata_prefix => 'oai_dc'))
     assert_equal "oai:test/#{record.id}", doc.elements['OAI-PMH/GetRecord/record/header/identifier'].text
@@ -56,10 +55,10 @@ class ActiveRecordProviderTest < TransactionalTestCase
   end
 
   def test_from
-    first_id = DCField.find(:first, :order => "id asc").id
-    DCField.update_all(['updated_at = ?', Time.parse("January 1 2005")],
+    first_id = DCField.find(:first, :order => "dc_fields.id asc").id
+    DCField.unscoped.update_all(['updated_at = ?', Time.parse("January 1 2005")],
       "id < #{first_id + 90}")
-    DCField.update_all(['updated_at = ?', Time.parse("June 1 2005")],
+    DCField.unscoped.update_all(['updated_at = ?', Time.parse("June 1 2005")],
       "id < #{first_id + 10}")
 
     from_param = Time.parse("January 1 2006")
@@ -68,7 +67,7 @@ class ActiveRecordProviderTest < TransactionalTestCase
       @provider.list_records(
         :metadata_prefix => 'oai_dc', :from => from_param)
     )
-    assert_equal DCField.find(:all, :conditions => ["updated_at >= ?", from_param]).size,
+    assert_equal DCField.find(:all, :conditions => ["dc_fields.updated_at >= ?", from_param]).size,
       doc.elements['OAI-PMH/ListRecords'].size
 
     doc = REXML::Document.new(
@@ -79,8 +78,8 @@ class ActiveRecordProviderTest < TransactionalTestCase
   end
 
   def test_until
-    first_id = DCField.find(:first, :order => "id asc").id
-    DCField.update_all(['updated_at = ?', Time.parse("June 1 2005")],
+    first_id = DCField.find(:first, :order => "dc_fields.id asc").id
+    DCField.unscoped.update_all(['updated_at = ?', Time.parse("June 1 2005")],
       "id < #{first_id + 10}")
 
     doc = REXML::Document.new(
@@ -91,11 +90,11 @@ class ActiveRecordProviderTest < TransactionalTestCase
   end
 
   def test_from_and_until
-    first_id = DCField.find(:first, :order => "id asc").id
-    DCField.update_all(['updated_at = ?', Time.parse("June 1 2005")])
-    DCField.update_all(['updated_at = ?', Time.parse("June 15 2005")],
+    first_id = DCField.find(:first, :order => "dc_fields.id asc").id
+    DCField.unscoped.update_all(['updated_at = ?', Time.parse("June 1 2005")])
+    DCField.unscoped.update_all(['updated_at = ?', Time.parse("June 15 2005")],
       "id < #{first_id + 50}")
-    DCField.update_all(['updated_at = ?', Time.parse("June 30 2005")],
+    DCField.unscoped.update_all(['updated_at = ?', Time.parse("June 30 2005")],
       "id < #{first_id + 10}")
 
     doc = REXML::Document.new(
@@ -108,7 +107,7 @@ class ActiveRecordProviderTest < TransactionalTestCase
   end
 
   def test_handles_empty_collections
-    DCField.delete_all
+    DCField.unscoped.delete_all
     assert DCField.count == 0
     # Identify and ListMetadataFormats should return normally
     test_identify
