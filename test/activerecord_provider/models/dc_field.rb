@@ -1,6 +1,6 @@
 class DCField < ActiveRecord::Base
   default_scope joins(:publication)
-  default_scope where("dc_publications.available_from >= :date", date: Date.yesterday)
+  default_scope where("dc_publications.available_from <= :date", date: Date.tomorrow)
 
   inheritance_column = 'DONOTINHERIT'
   has_and_belongs_to_many :sets,
