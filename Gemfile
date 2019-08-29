@@ -15,5 +15,6 @@ group :test do
   gem 'rcov', '~> 0.9', :platform => [:ruby_18, :jruby]
   gem 'simplecov', :platform => :ruby_19
   gem 'simplecov-rcov', :platform => :ruby_19
-  gem 'sqlite3', :platform => [:ruby, :mswin]
+  gem 'sqlite3', '~>1.3.5', :platform => [:ruby, :mswin]
+  gem 'test-unit'
 end
