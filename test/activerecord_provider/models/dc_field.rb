@@ -4,4 +4,5 @@ class DCField < ActiveRecord::Base
     :join_table => "dc_fields_dc_sets",
     :foreign_key => "dc_field_id",
     :class_name => "DCSet"
+  belongs_to :publication, class_name: 'DCPublication', foreign_key: :dc_publication_id
 end

@@ -17,9 +17,18 @@ class TransactionalTestCase < Test::Unit::TestCase
     fixtures = YAML.load_file(
       File.join(File.dirname(__FILE__), '..', 'fixtures', 'dc.yml')
     )
+    fields_per_publication = 20
     disable_logging do
+      count = 0
+      publication = nil
       fixtures.keys.sort.each do |key|
-        DCField.create(fixtures[key])
+        publication ||= DCPublication.create(name: "Pub ##{DCPublication.count + 1}", available_from: DateTime.current)
+        DCField.create(fixtures[key].merge(dc_publication_id: publication.id))
+        count += 1
+        if count == fields_per_publication
+          count = 0
+          publication = nil
+        end
       end
     end
   end
