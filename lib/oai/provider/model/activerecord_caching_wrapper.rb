@@ -5,11 +5,12 @@ module OAI::Provider
   # ActiveRecord model class in support of the caching wrapper.
   class OaiToken < ActiveRecord::Base
     has_many :entries, :class_name => 'OaiEntry',
-      :order => "record_id", :dependent => :destroy
+             :order => "record_id", :dependent => :destroy
 
     validates_uniqueness_of :token
 
     # Make sanitize_sql a public method so we can make use of it.
+
     public
 
     def self.sanitize_sql(*arg)
@@ -48,12 +49,12 @@ module OAI::Provider
 
     attr_reader :model, :timestamp_field, :expire
 
-    def initialize(model, options={})
+    def initialize(model, options = {})
       @expire = options.delete(:timeout) || 12.hours
       super(model, options)
     end
 
-    def find(selector, options={})
+    def find(selector, options = {})
       sweep_cache
       return next_set(options[:resumption_token]) if options[:resumption_token]
 
@@ -63,7 +64,7 @@ module OAI::Provider
         total = model.count(:id, :conditions => conditions)
         if @limit && total > @limit
           select_partial(
-            ResumptionToken.new(options.merge({:last => 0})))
+            ResumptionToken.new(options.merge({ :last => 0 })))
         else
           model.find(:all, :conditions => conditions)
         end
@@ -93,10 +94,12 @@ module OAI::Provider
       if 0 == token.last
         oaitoken = OaiToken.find_or_create_by_token(token.to_s)
         if oaitoken.new_record_before_save?
-          OaiToken.connection.execute("insert into " +
-            "#{OaiEntry.table_name} (oai_token_id, record_id) " +
-            "select #{oaitoken.id}, id from #{model.table_name} where " +
-            "#{OaiToken.sanitize_sql(token_conditions(token))}")
+          OaiToken.connection.execute(
+            "insert into " \
+              "#{OaiEntry.table_name} (oai_token_id, record_id) " +
+              "select #{oaitoken.id}, id from #{model.table_name} where " +
+              default_scope_conditions +
+              "#{OaiToken.sanitize_sql(token_conditions(token))}")
         end
       end
 
@@ -105,8 +108,14 @@ module OAI::Provider
 
       PartialResult.new(
         hydrate_records(oaitoken.entries.find(:all, :limit => @limit,
-          :offset => token.last * @limit)), token.next(token.last + 1)
+                                              :offset => token.last * @limit)), token.next(token.last + 1)
       )
+    end
+
+    def default_scope_conditions
+      return '' unless model.default_scopes?
+
+      "#{model.table_name}.id IN (#{model.scoped.select("#{model.table_name}.id").to_sql}) AND "
     end
 
     def sweep_cache
@@ -114,7 +123,7 @@ module OAI::Provider
     end
 
     def hydrate_records(records)
-      model.find(records.collect {|r| r.record_id })
+      model.unscoped.find(records.collect(&:record_id))
     end
 
     def token_conditions(token)
@@ -127,6 +136,5 @@ module OAI::Provider
       created = Time.parse(creation.strftime("%Y-%m-%d %H:%M:%S"))
       created.utc + expire
     end
-
   end
 end
