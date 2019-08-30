@@ -145,7 +145,7 @@ module OAI::Provider
 
     def set_conditions
       return unless @find_options.keys.include?(:set)
-      return ' FALSE ' unless set.present?
+      return ' 0 = 1 ' unless set.present?
 
       set_conditions_by_association || set_conditions_by_column
     end
