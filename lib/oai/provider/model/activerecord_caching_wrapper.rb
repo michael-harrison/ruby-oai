@@ -47,7 +47,7 @@ module OAI::Provider
   #
   class ActiveRecordCachingWrapper < ActiveRecordWrapper
 
-    attr_reader :model, :timestamp_field, :expire
+    attr_reader :model, :timestamp_field, :expire, :set_to_record_association
 
     def initialize(model, options = {})
       @expire = options.delete(:timeout) || 12.hours
@@ -70,7 +70,7 @@ module OAI::Provider
           model.find(:all, :conditions => conditions)
         end
       else
-        model.find(selector, :conditions => conditions)
+        model.find(selector,   :conditions => conditions)
       end
     end
 
@@ -157,7 +157,7 @@ module OAI::Provider
     def set_conditions_by_association
       return unless set.class.respond_to?(:reflect_on_all_associations)
 
-      association = set.class.reflect_on_all_associations.select { |a| a.klass == model }.first
+      association = set.class.reflect_on_all_associations.select { |a| match_association(a) }.first
       return unless association.present?
 
       "#{model.table_name}.id IN (#{set.send(association.name).select("#{model.table_name}.id").to_sql})"

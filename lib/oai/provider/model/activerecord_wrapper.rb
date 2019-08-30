@@ -10,12 +10,13 @@ module OAI::Provider
   #
   class ActiveRecordWrapper < Model
 
-    attr_reader :model, :timestamp_field
+    attr_reader :model, :timestamp_field, :set_to_record_association
 
     def initialize(model, options={})
       @model = model
       @timestamp_field = options.delete(:timestamp_field) || 'updated_at'
       @limit = options.delete(:limit)
+      @set_to_record_association = options.delete(:set_to_record_association)
 
       unless options.empty?
         raise ArgumentError.new(
@@ -95,7 +96,7 @@ module OAI::Provider
       # If the set has a backward relationship, we'll use it
       if set.class.respond_to?(:reflect_on_all_associations)
         set.class.reflect_on_all_associations.each do |assoc|
-          return set.send(assoc.name).scoped if assoc.klass == model
+          return set.send(assoc.name).scoped if match_association(assoc)
         end
       end
 
@@ -107,6 +108,10 @@ module OAI::Provider
         # Default to empty set, as we've tried everything else
         model.scoped(:limit => 0)
       end
+    end
+
+    def match_association(association)
+      @set_to_record_association ? association.name == @set_to_record_association : association.klass == model
     end
 
     def find_set_by_spec(spec)
