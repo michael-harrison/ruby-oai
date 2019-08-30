@@ -55,10 +55,11 @@ module OAI::Provider
     end
 
     def find(selector, options = {})
+      @find_options = options
       sweep_cache
       return next_set(options[:resumption_token]) if options[:resumption_token]
 
-      conditions = sql_conditions(options)
+      conditions = record_conditions + OaiToken.sanitize_sql(sql_conditions(options))
 
       if :all == selector
         total = model.count(:id, :conditions => conditions)
@@ -79,7 +80,7 @@ module OAI::Provider
       raise ResumptionTokenException.new unless @limit
 
       token = ResumptionToken.parse(token_string)
-      total = model.count(:id, :conditions => token_conditions(token))
+      total = model.count(:id, conditions: record_conditions + OaiToken.sanitize_sql(token_conditions(token)))
 
       if token.last * @limit + @limit < total
         select_partial(token)
@@ -95,10 +96,10 @@ module OAI::Provider
         oaitoken = OaiToken.find_or_create_by_token(token.to_s)
         if oaitoken.new_record_before_save?
           OaiToken.connection.execute(
-            "insert into " \
+            "insert into " +
               "#{OaiEntry.table_name} (oai_token_id, record_id) " +
               "select #{oaitoken.id}, id from #{model.table_name} where " +
-              default_scope_conditions +
+              record_conditions +
               "#{OaiToken.sanitize_sql(token_conditions(token))}")
         end
       end
@@ -110,12 +111,6 @@ module OAI::Provider
         hydrate_records(oaitoken.entries.find(:all, :limit => @limit,
                                               :offset => token.last * @limit)), token.next(token.last + 1)
       )
-    end
-
-    def default_scope_conditions
-      return '' unless model.default_scopes?
-
-      "#{model.table_name}.id IN (#{model.scoped.select("#{model.table_name}.id").to_sql}) AND "
     end
 
     def sweep_cache
@@ -131,6 +126,48 @@ module OAI::Provider
     end
 
     private
+
+    def default_scope_conditions
+      return unless model.default_scopes?
+
+      "#{model.table_name}.id IN (#{model.scoped.select("#{model.table_name}.id").to_sql})"
+    end
+
+    def record_conditions
+      @set = nil
+      conditions = [
+        default_scope_conditions,
+        set_conditions
+      ].compact.join(' AND ')
+
+      conditions.present? ? "#{conditions} AND " : ''
+    end
+
+    def set_conditions
+      return unless @find_options.keys.include?(:set)
+      return ' FALSE ' unless set.present?
+
+      set_conditions_by_association || set_conditions_by_column
+    end
+
+    def set
+      @set ||= find_set_by_spec(@find_options[:set])
+    end
+
+    def set_conditions_by_association
+      return unless set.class.respond_to?(:reflect_on_all_associations)
+
+      association = set.class.reflect_on_all_associations.select { |a| a.klass == model }.first
+      return unless association.present?
+
+      "#{model.table_name}.id IN (#{set.send(association.name).select("#{model.table_name}.id").to_sql})"
+    end
+
+    def set_conditions_by_column
+      return unless model.column_names.include?('set')
+
+      "#{model.table_name}.id IN (#{model.where(set: @find_options[:set]).select("#{model.table_name}.id").to_sql})"
+    end
 
     def expires_at(creation)
       created = Time.parse(creation.strftime("%Y-%m-%d %H:%M:%S"))
